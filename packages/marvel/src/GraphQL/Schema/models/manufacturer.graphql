@@ -1,0 +1,61 @@
+extend type Query {
+    manufacturers(
+        text: String @where(operator: "like", key: "name")
+        is_approved: Boolean @eq
+        hasType: _ @whereHasConditions(columns: ["slug"])
+        orderBy: _ @orderBy(columns: ["updated_at", "created_at", "name"])
+    ): [Manufacturer!]! @paginate(defaultCount: 15)
+    manufacturer(slug: String @eq): Manufacturer @find
+    topManufacturers(limit: Int = 15): [Manufacturer!]!
+        @field(resolver: "ManufacturerQuery@topManufacturer")
+}
+
+type Manufacturer {
+    id: ID!
+    name: String!
+    slug: String
+    type_id: ID
+    products_count: Int
+    type: Type! @belongsTo
+    is_approved: Boolean
+    description: String
+    website: String
+    socials: [ShopSocials]
+    image: Attachment
+    cover_image: Attachment
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input CreateManufacturerInput {
+    name: String!
+    description: String
+    type_id: ID! @rules(apply: ["exists:types,id"])
+    is_approved: Boolean
+    website: String
+    socials: [ShopSocialInput]
+    shop_id: ID @rules(apply: ["exists:shops,id"])
+    image: AttachmentInput
+    cover_image: AttachmentInput
+}
+
+input UpdateManufacturerInput {
+    id: ID!
+    name: String!
+    type_id: ID! @rules(apply: ["exists:types,id"])
+    shop_id: ID @rules(apply: ["exists:shops,id"])
+    is_approved: Boolean
+    website: String
+    socials: [ShopSocialInput]
+    description: String
+    image: AttachmentInput
+    cover_image: AttachmentInput
+}
+
+extend type Mutation {
+    deleteManufacturer(id: ID!): Manufacturer @delete
+    updateManufacturer(input: UpdateManufacturerInput! @spread): Manufacturer
+        @field(resolver: "ManufacturerMutator@updateManufacturer")
+    createManufacturer(input: CreateManufacturerInput! @spread): Manufacturer
+        @field(resolver: "ManufacturerMutator@storeManufacturer")
+}

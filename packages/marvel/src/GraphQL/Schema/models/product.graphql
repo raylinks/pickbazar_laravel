@@ -1,0 +1,257 @@
+extend type Query {
+    products(
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "created_at"
+                    "name"
+                    "status"
+                    "updated_at"
+                    "price"
+                    "sale_price"
+                    "max_price"
+                    "min_price"
+                    "quantity"
+                ]
+            )
+        text: String @where(operator: "like", key: "name")
+        status: String @eq
+        max_price: PriceRange @whereBetween
+        min_price: PriceRange @whereBetween
+        price: PriceRange @whereBetween
+        status: String @eq
+        shop_id: ID @eq
+        hasType: _ @whereHasConditions(columns: ["slug"])
+        hasAuthor: _ @whereHasConditions(columns: ["slug"])
+        hasManufacturer: _ @whereHasConditions(columns: ["slug"])
+        hasType: _ @whereHasConditions(columns: ["slug"])
+        hasCategories: _ @whereHasConditions(columns: ["slug"])
+        hasTags: _ @whereHasConditions(columns: ["slug"])
+    ): [Product!]!
+        @paginate(defaultCount: 15)
+        @orderBy(column: "created_at", direction: "DESC")
+    product(id: ID @eq, slug: String @eq): Product @find
+}
+
+enum ProductStatus {
+    PUBLISH @enum(value: "publish")
+    DRAFT @enum(value: "draft")
+}
+
+input PriceRange {
+    from: Float!
+    to: Float!
+}
+type OrderProductPivot {
+    variation_option_id: ID
+    order_quantity: Int
+    unit_price: Float
+    subtotal: Float
+}
+
+type Variation {
+    id: ID
+    title: String
+    product: Product @belongsTo
+    price: Float
+    image: Attachment
+    digital_file: DigitalFile
+        @field(
+            resolver: "Marvel\\GraphQL\\Queries\\ProductQuery@fetchDigitalFilesForVariation"
+        )
+    sku: String
+    is_disable: Boolean
+    is_digital: Boolean
+    sale_price: Float
+    quantity: Int
+    options: [VariationOption]
+}
+
+union Fileable = Product | Variation
+
+type DigitalFile {
+    id: ID!
+    attachment_id: ID!
+    fileable: Fileable @morphTo
+    url: String!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+type VariationOption {
+    name: String
+    value: String
+}
+
+type Product {
+    id: ID!
+    name: String!
+    slug: String!
+    type: Type! @belongsTo
+    product_type: ProductType!
+    categories: [Category] @belongsToMany
+    tags: [Tag] @belongsToMany
+    digital_file: DigitalFile
+        @field(
+            resolver: "Marvel\\GraphQL\\Queries\\ProductQuery@fetchDigitalFilesForProduct"
+        )
+    variations: [AttributeValue] @belongsToMany
+    variation_options: [Variation] @hasMany
+    pivot: OrderProductPivot
+    orders: [Order] @belongsToMany
+    shop: Shop @belongsTo
+    author: Author @belongsTo
+    manufacturer: Manufacturer @belongsTo
+    shop_id: ID
+    author_id: ID
+    manufacturer_id: ID
+    related_products(limit: Int): [Product]
+        @field(
+            resolver: "Marvel\\GraphQL\\Queries\\ProductQuery@relatedProducts"
+        )
+    description: String
+    in_stock: Boolean
+    is_taxable: Boolean
+    is_digital: Boolean
+    is_external: Boolean
+    external_product_url: String
+    external_product_button_text: String
+    sale_price: Float
+    max_price: Float
+    min_price: Float
+    sku: String
+    gallery: [Attachment]
+    image: Attachment
+    video: Attachment
+    status: ProductStatus!
+    height: String
+    length: String
+    width: String
+    price: Float
+    quantity: Int
+    unit: String!
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input UpsertVariationsHasMany {
+    upsert: [VariationInput!]
+    delete: [ID!]
+}
+
+input DigitalFileInput {
+    id: ID
+    attachment_id: ID!
+    url: String!
+}
+
+input VariationInput {
+    id: ID
+    title: String!
+    image: AttachmentInput
+    sku: String!
+    digital_file: DigitalFileInput
+    is_digital: Boolean
+    is_disable: Boolean
+    sale_price: Float
+    price: Float!
+    quantity: Int!
+    options: [VariationOptionInput]
+}
+
+input VariationOptionInput {
+    name: String
+    value: String
+}
+
+input SyncAttributeBelongsToMany {
+    sync: [AttributeProductPivot]
+}
+
+input AttributeProductPivot {
+    attribute_value_id: ID! @rules(apply: ["exists:attribute_values,id"])
+}
+
+input CreateProductInput {
+    name: String! @rules(apply: ["required", "max:255"])
+    type_id: ID! @rules(apply: ["required", "exists:types,id"])
+    shop_id: ID! @rules(apply: ["exists:shops,id"])
+    author_id: ID @rules(apply: ["exists:authors,id"])
+    manufacturer_id: ID @rules(apply: ["exists:manufacturers,id"])
+    price: Float
+    max_price: Float
+    min_price: Float
+    sale_price: Float
+    quantity: Int
+    product_type: ProductType!
+    unit: String! @rules(apply: ["required"])
+    description: String @rules(apply: ["max:1000"])
+    categories: [ID!]
+    tags: [ID!]
+    digital_file: DigitalFileInput
+    variations: [AttributeProductPivot]
+    variation_options: UpsertVariationsHasMany
+    in_stock: Boolean
+    is_taxable: Boolean
+    is_digital: Boolean
+    is_external: Boolean
+    external_product_url: String
+    external_product_button_text: String
+    sale_price: Float
+    sku: String
+    gallery: [AttachmentInput]
+    image: AttachmentInput
+    video: AttachmentInput
+    status: ProductStatus
+    height: String
+    length: String
+    width: String
+}
+
+input UpdateProductInput {
+    id: ID! @rules(apply: ["required"])
+    name: String!
+    type_id: ID! @rules(apply: ["required", "exists:types,id"])
+    shop_id: ID! @rules(apply: ["exists:shops,id"])
+    author_id: ID @rules(apply: ["exists:authors,id"])
+    manufacturer_id: ID @rules(apply: ["exists:manufacturers,id"])
+    price: Float
+    max_price: Float
+    min_price: Float
+    quantity: Int
+    product_type: ProductType!
+    unit: String! @rules(apply: ["required"])
+    description: String @rules(apply: ["max:1000"])
+    categories: [ID!]
+    tags: [ID!]
+    digital_file: DigitalFileInput
+    variations: [AttributeProductPivot]
+    variation_options: UpsertVariationsHasMany
+    in_stock: Boolean
+    is_taxable: Boolean
+    is_digital: Boolean
+    is_external: Boolean
+    external_product_url: String
+    external_product_button_text: String
+    sale_price: Float
+    sku: String
+    gallery: [AttachmentInput]
+    image: AttachmentInput
+    video: AttachmentInput
+    status: ProductStatus!
+    height: String
+    length: String
+    width: String
+}
+
+extend type Mutation {
+    deleteProduct(id: ID!): Product @delete @can(ability: "staff")
+    createProduct(input: CreateProductInput! @spread): Product
+        @field(resolver: "ProductMutator@store")
+    updateProduct(input: UpdateProductInput! @spread): Product
+        @field(resolver: "ProductMutator@updateProduct")
+    importProducts(shop_id: ID! @spread, csv: Upload!): Boolean
+        @field(resolver: "ProductMutator@importProducts")
+    importVariationOptions(shop_id: ID! @spread, csv: Upload!): Boolean
+        @field(resolver: "ProductMutator@importVariationOptions")
+}

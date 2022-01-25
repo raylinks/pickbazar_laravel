@@ -1,0 +1,56 @@
+extend type Query {
+    refunds(
+        orderBy: String
+        sortedBy: String
+        shop_id: Int @eq
+        order_id: Int @eq
+        customer_id: Int @eq
+    ): [Refund!]!
+        @paginate(
+            builder: "Marvel\\GraphQL\\Queries\\RefundQuery@fetchRefunds"
+            defaultCount: 10
+        )
+    refund(id: ID @eq): Refund @find
+}
+
+type Refund {
+    id: ID!
+    title: String
+    description: String
+    images: [Attachment]
+    amount: Float
+    status: RefundStatus
+    shop: Shop @belongsTo
+    order: Order @belongsTo
+    customer: User @belongsTo
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input CreateRefundInput {
+    order_id: ID!
+        @rules(
+            apply: ["required", "exists:orders,id"]
+            messages: { exists: "Sorry! The Refund doesn't exists." }
+        )
+    title: String!
+    description: String
+    images: [AttachmentInput]
+}
+input UpdateRefundInput {
+    id: ID!
+        @rules(
+            apply: ["required", "exists:refunds,id"]
+            messages: { exists: "Sorry! The Refund doesn't exists." }
+        )
+    status: RefundStatus!
+}
+
+extend type Mutation {
+    deleteRefund(id: ID!): Refund @delete @can(ability: "super_admin")
+    createRefund(input: CreateRefundInput! @spread): Refund
+        @field(resolver: "RefundMutator@createRefund")
+    updateRefund(input: UpdateRefundInput! @spread): Refund
+        @field(resolver: "RefundMutator@updateRefund")
+        @can(ability: "super_admin")
+}

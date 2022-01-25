@@ -1,0 +1,65 @@
+extend type Query {
+    authors(
+        text: String @where(operator: "like", key: "name")
+        is_approved: Boolean @eq
+        orderBy: _ @orderBy(columns: ["updated_at", "created_at", "name"])
+    ): [Author!]! @paginate(defaultCount: 15)
+    topAuthors(limit: Int = 15): [Author!]!
+        @field(resolver: "AuthorQuery@topAuthor")
+    author(slug: String @eq): Author @find
+}
+
+type Author {
+    id: ID!
+    name: String!
+    is_approved: Boolean
+    slug: String
+    bio: String
+    quote: String
+    products_count: Int
+    born: String
+    death: String
+    languages: String
+    socials: [ShopSocials]
+    image: Attachment
+    cover_image: Attachment
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input CreateAuthorInput {
+    name: String!
+    is_approved: Boolean
+    bio: String
+    quote: String
+    born: String
+    death: String
+    languages: String
+    socials: [ShopSocialInput]
+    shop_id: ID @rules(apply: ["exists:shops,id"])
+    image: AttachmentInput
+    cover_image: AttachmentInput
+}
+
+input UpdateAuthorInput {
+    id: ID!
+    name: String!
+    is_approved: Boolean
+    shop_id: ID @rules(apply: ["exists:shops,id"])
+    bio: String
+    quote: String
+    born: String
+    death: String
+    languages: String
+    socials: [ShopSocialInput]
+    image: AttachmentInput
+    cover_image: AttachmentInput
+}
+
+extend type Mutation {
+    deleteAuthor(id: ID!): Author @delete
+    updateAuthor(input: UpdateAuthorInput! @spread): Author
+        @field(resolver: "AuthorMutator@updateAuthor")
+    createAuthor(input: CreateAuthorInput! @spread): Author
+        @field(resolver: "AuthorMutator@storeAuthor")
+}
